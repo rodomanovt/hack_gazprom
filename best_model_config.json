@@ -1,6 +1,5 @@
 {
-    "window_size": 10,
-    "percentile_diff": 55,
-    "threshold": 0.01,
-    "max_depth": 3
+    "window_size": 15,
+    "corruption_ratio": 0.5,
+    "max_depth": 10
 }
