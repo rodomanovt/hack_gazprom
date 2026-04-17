@@ -4,8 +4,8 @@
 #include <string.h>
 void score(double * input, double * output) {
     double var0[2];
-    if (input[0] <= 0.010500133968889713) {
-        if (input[1] <= 0.01050085574388504) {
+    if (input[0] <= 0.010500000324100256) {
+        if (input[1] <= 0.01049997378140688) {
             memcpy(var0, (double[]){0.0, 1.0}, 2 * sizeof(double));
         } else {
             memcpy(var0, (double[]){1.0, 0.0}, 2 * sizeof(double));
