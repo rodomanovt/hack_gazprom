@@ -1,1 +1,9 @@
+# Виртуальные окружения и настройки IDE
 .venv
+.vscode
+
+# Файлы сборки на Си
+c_models/*.exe
+c_models/*.ilk
+c_models/*.obj
+c_models/*.pdb
