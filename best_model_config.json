@@ -1,0 +1,5 @@
+{
+    "window_size": 15,
+    "corruption_ratio": 0.5,
+    "max_depth": 10
+}
