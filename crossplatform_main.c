@@ -4,8 +4,15 @@
 #include <math.h>
 #include <ctype.h>
 #include <sys/stat.h>
-#include <dirent.h>
 #include <time.h>
+
+#ifdef _WIN32
+    #include <windows.h>
+    #include <direct.h>
+    #define mkdir(dir, mode) _mkdir(dir)
+#else
+    #include <dirent.h>
+#endif
 
 #include "model.c"
 
@@ -79,32 +86,60 @@ int process_signal(SensorState* state, double current_value) {
     return (model_output[1] > 0.5) ? 1 : 0;
 }
 
+int get_first_file_in_dir(const char* dir_path, char* out_filepath, size_t max_len) {
+#ifdef _WIN32
+    WIN32_FIND_DATA findFileData;
+    HANDLE hFind;
+    char search_path[512];
+    snprintf(search_path, sizeof(search_path), "%s\\*.*", dir_path);
+
+    hFind = FindFirstFile(search_path, &findFileData);
+    if (hFind == INVALID_HANDLE_VALUE) return 0;
+
+    do {
+        if (findFileData.cFileName[0] != '.') {
+            snprintf(out_filepath, max_len, "%s/%s", dir_path, findFileData.cFileName);
+            FindClose(hFind);
+            return 1;
+        }
+    } while (FindNextFile(hFind, &findFileData) != 0);
+
+    FindClose(hFind);
+    return 0;
+#else
+    DIR *d = opendir(dir_path);
+    if (!d) return 0;
+
+    struct dirent *entry;
+    while ((entry = readdir(d)) != NULL) {
+        if (entry->d_name[0] != '.') {
+            snprintf(out_filepath, max_len, "%s/%s", dir_path, entry->d_name);
+            closedir(d);
+            return 1;
+        }
+    }
+    closedir(d);
+    return 0;
+#endif
+}
+
+
 int main() {
     clock_t start_time = clock();
+
+    #ifdef _WIN32
+    SetConsoleOutputCP(CP_UTF8);
+    #endif
 
     const char* input_dir = "input_data";
     char input_filename[512] = "";
     
-    DIR *d = opendir(input_dir);
-    if (!d) {
-        printf("ОШИБКА: Папка '%s' не найдена\n", input_dir);
+    if (!get_first_file_in_dir(input_dir, input_filename, sizeof(input_filename))) {
+        printf("ОШИБКА: В папке '%s' нет файлов или папка не найдена\n", input_dir);
         return 1;
     }
 
-    struct dirent *entry;
-    int file_found = 0;
-    while ((entry = readdir(d)) != NULL) {
-        if (entry->d_name[0] == '.') continue;
-        snprintf(input_filename, sizeof(input_filename), "%s/%s", input_dir, entry->d_name);
-        file_found = 1;
-        break; 
-    }
-    closedir(d);
-
-    if (!file_found) {
-        printf("ОШИБКА: В папке '%s' нет файлов\n", input_dir);
-        return 1;
-    }
+    printf("Найден файл для обработки: %s\n", input_filename);
 
     FILE *fin = fopen(input_filename, "r");
     if (!fin) {
@@ -138,17 +173,17 @@ int main() {
     }
 
     int num_sensors = total_columns - 1;
-    printf("Найдено датчиков: %d. Обработка файла: %s\n", num_sensors, input_filename);
+    printf("Найдено датчиков: %d. Начинаю создание отчетов...\n", num_sensors);
 
     SensorState sensors[MAX_SENSORS];
     FILE* out_files[MAX_SENSORS];
 
-    mkdir("inference_reports", 0777);
+    mkdir("inference_reports", 0777); 
 
     for (int i = 0; i < num_sensors; i++) {
         init_sensor_state(&sensors[i]);
         
-        char fname[128];
+        char fname[512]; 
         sprintf(fname, "inference_reports/%03d_report.csv", i + 1);
         
         out_files[i] = fopen(fname, "w");
