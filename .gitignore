@@ -3,7 +3,10 @@
 .vscode
 
 # Файлы сборки на Си
-c_models/*.exe
-c_models/*.ilk
-c_models/*.obj
-c_models/*.pdb
+*.exe
+*.ilk
+*.obj
+*.pdb
+
+# Отчеты
+inference_reports

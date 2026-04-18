@@ -3,7 +3,8 @@
 #include <string.h>
 #include <math.h>
 #include <ctype.h>
-#include <sys/stat.h> // Для создания папок
+#include <sys/stat.h>
+#include <dirent.h>
 
 #ifdef _WIN32
     #include <windows.h>
@@ -11,7 +12,7 @@
     #define mkdir(dir, mode) _mkdir(dir) // Совместимость mkdir для Windows
 #endif
 
-#include "UNIVERSAL_model.c"
+#include "model.c"
 
 #define WINDOW_SIZE 15
 #define MAX_LINE_LENGTH 8192
@@ -83,31 +84,38 @@ int process_signal(SensorState* state, double current_value) {
     return (model_output[1] > 0.5) ? 1 : 0;
 }
 
-// Улучшенная очистка и сокращение имени файла
-void sanitize_filename(char* str) {
-    for (int i = 0; str[i] != '\0'; i++) {
-        unsigned char c = (unsigned char)str[i];
-        if (c < 128 && !isalnum(c)) {
-            str[i] = '_'; // Заменяем все странные ASCII символы на подчеркивание
-        }
-    }
-    // Если имя слишком длинное, обрезаем его (лимит Windows на путь ~260 символов)
-    if (strlen(str) > 50) {
-        str[50] = '\0';
-    }
-}
 
 int main() {
     #ifdef _WIN32
     SetConsoleOutputCP(CP_UTF8);
     #endif
 
-    const char* input_filename = "../data/1.csv";
-    FILE *fin = fopen(input_filename, "r");
-    if (!fin) {
-        printf("ОШИБКА: Не удалось открыть '%s'. Проверьте, что файл лежит рядом с .exe\n", input_filename);
+    const char* input_dir = "input_data";
+    char input_filename[512] = "";
+    
+    DIR *d = opendir(input_dir);
+    if (!d) {
+        printf("ОШИБКА: Папка '%s' не найдена\n", input_dir);
         return 1;
     }
+
+    struct dirent *entry;
+    int file_found = 0;
+    while ((entry = readdir(d)) != NULL) {
+        if (entry->d_name[0] == '.') continue; // Пропускаем . и ..
+        snprintf(input_filename, sizeof(input_filename), "%s/%s", input_dir, entry->d_name);
+        file_found = 1;
+        break; 
+    }
+    closedir(d);
+
+    if (!file_found) {
+        printf("ОШИБКА: В папке '%s' нет файлов\n", input_dir);
+        return 1;
+    }
+
+    FILE *fin = fopen(input_filename, "r");
+    
 
     char line[MAX_LINE_LENGTH];
     if (!fgets(line, sizeof(line), fin)) {
@@ -135,35 +143,27 @@ int main() {
     }
 
     int num_sensors = total_columns - 1;
-    printf("Найдено датчиков: %d. Начинаю создание отчетов в папке 'output'...\n", num_sensors);
+    printf("Найдено датчиков: %d. Начинаю создание отчетов в папке 'inference_reports'...\n", num_sensors);
 
     SensorState sensors[MAX_SENSORS];
     FILE* out_files[MAX_SENSORS];
 
-    mkdir("output", 0777); // Создаем папку output, если её нет
+    mkdir("../inference_reports", 0777); // Создаем папку inference_reports, если её нет
 
     for (int i = 0; i < num_sensors; i++) {
         init_sensor_state(&sensors[i]);
         
-        char safe_name[256];
-        memset(safe_name, 0, 256);
-        strncpy(safe_name, column_names[i + 1], 100); // Берем максимум 100 символов из названия
-        
-        sanitize_filename(safe_name);
-        
-        char fname[512];
-        sprintf(fname, "output/%s_report.csv", safe_name);
+        char fname[64];
+        // Генерируем простое имя: 001_report.csv, 002_report.csv и т.д.
+        sprintf(fname, "inference_reports/%03d_report.csv", i + 1);
         
         out_files[i] = fopen(fname, "w");
         if (!out_files[i]) {
-            // Если не создалось, пробуем совсем простое имя
-            sprintf(fname, "output/sensor_%d_report.csv", i + 1);
-            out_files[i] = fopen(fname, "w");
-            if (!out_files[i]) {
-                printf("КРИТИЧЕСКАЯ ОШИБКА: Не удалось создать файл для датчика %d\n", i+1);
-                return 1;
-            }
+            printf("КРИТИЧЕСКАЯ ОШИБКА: Не удалось создать файл %s\n", fname);
+            return 1;
         }
+        
+        // Записываем заголовки: оставляем оригинальное имя датчика внутри файла
         fprintf(out_files[i], "%s;%s;0 - Bad, 1 - Good\n", column_names[0], column_names[i + 1]);
     }
 
@@ -198,6 +198,6 @@ int main() {
     fclose(fin);
     for (int i = 0; i < num_sensors; i++) fclose(out_files[i]);
 
-    printf("\nГотово! Всего строк: %d. Отчеты в папке 'output'.\n", row_count);
+    printf("\nГотово! Всего строк: %d. Отчеты в папке 'inference_reports'.\n", row_count);
     return 0;
 }
