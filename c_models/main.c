@@ -91,7 +91,7 @@ void sanitize_filename(char* str) {
             str[i] = '_'; // Заменяем все странные ASCII символы на подчеркивание
         }
     }
-    // Если имя слишком длинное, обрезаем его (лимит Windows на путь ~260 символов)
+    // Если имя слишком длинное, обрезаем его
     if (strlen(str) > 50) {
         str[50] = '\0';
     }
@@ -135,12 +135,12 @@ int main() {
     }
 
     int num_sensors = total_columns - 1;
-    printf("Найдено датчиков: %d. Начинаю создание отчетов в папке 'output'...\n", num_sensors);
+    printf("Найдено датчиков: %d. Начинаю создание отчетов в папке 'inference_reports'...\n", num_sensors);
 
     SensorState sensors[MAX_SENSORS];
     FILE* out_files[MAX_SENSORS];
 
-    mkdir("output", 0777); // Создаем папку output, если её нет
+    mkdir("../inference_reports", 0777); // Создаем папку inference_reports, если её нет
 
     for (int i = 0; i < num_sensors; i++) {
         init_sensor_state(&sensors[i]);
@@ -152,12 +152,12 @@ int main() {
         sanitize_filename(safe_name);
         
         char fname[512];
-        sprintf(fname, "output/%s_report.csv", safe_name);
+        sprintf(fname, "../inference_reports/%s_report.csv", safe_name);
         
         out_files[i] = fopen(fname, "w");
         if (!out_files[i]) {
             // Если не создалось, пробуем совсем простое имя
-            sprintf(fname, "output/sensor_%d_report.csv", i + 1);
+            sprintf(fname, "../inference_reports/sensor_%d_report.csv", i + 1);
             out_files[i] = fopen(fname, "w");
             if (!out_files[i]) {
                 printf("КРИТИЧЕСКАЯ ОШИБКА: Не удалось создать файл для датчика %d\n", i+1);
@@ -198,6 +198,6 @@ int main() {
     fclose(fin);
     for (int i = 0; i < num_sensors; i++) fclose(out_files[i]);
 
-    printf("\nГотово! Всего строк: %d. Отчеты в папке 'output'.\n", row_count);
+    printf("\nГотово! Всего строк: %d. Отчеты в папке 'inference_reports'.\n", row_count);
     return 0;
 }
