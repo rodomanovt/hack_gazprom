@@ -5,7 +5,6 @@
 #include <ctype.h>
 #include <sys/stat.h>
 #include <dirent.h>
-#include <time.h>
 
 #include "model.c"
 
@@ -80,8 +79,6 @@ int process_signal(SensorState* state, double current_value) {
 }
 
 int main() {
-    clock_t start_time = clock();
-
     const char* input_dir = "input_data";
     char input_filename[512] = "";
     
@@ -191,28 +188,7 @@ int main() {
     fclose(fin);
     for (int i = 0; i < num_sensors; i++) fclose(out_files[i]);
 
-    clock_t end_time = clock();
-    double time_spent = (double)(end_time - start_time) / CLOCKS_PER_SEC;
-
-    size_t mem_per_channel = sizeof(SensorState);
-    size_t mem_total_static = sizeof(sensors) + sizeof(out_files) + sizeof(line) + sizeof(column_names) + sizeof(tokens);
-
-    double ms_per_cycle = 0.0;
-    if (row_count > 0) {
-        ms_per_cycle = (time_spent / row_count) * 1000.0;
-    }
-
-    printf("\n\n========================================================\n");
-    printf("ОТЧЕТ ПО ПОТРЕБЛЕНИЮ РЕСУРСОВ\n");
-    printf("========================================================\n");
-    printf("Обработано каналов (датчиков): %d шт.\n", num_sensors);
-    printf("Обработано строк истории:      %d шт.\n", row_count);
-    printf(" Общее время работы модуля:     %.3f секунд\n", time_spent);
-    printf("--------------------------------------------------------\n");
-    printf("Время 1 рабочего цикла ИИ:     %.4f мс (Лимит: 20 мс)\n", ms_per_cycle);
-    printf("Память на 1 канал (датчик):    %zu байт (Лимит: 256 Кб)\n", mem_per_channel);
-    printf("Общая выделенная память:       %.2f Кб   (Лимит: 5 Мб)\n", (double)mem_total_static / 1024.0);
-    printf("========================================================\n");
+    printf("\nГотово! Всего строк: %d. Отчеты в папке 'inference_reports'.\n", row_count);
 
     return 0;
 }
